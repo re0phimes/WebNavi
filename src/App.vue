@@ -25,9 +25,7 @@ import UrlManager from './components/UrlManager.vue';
         <!-- 主内容区域 -->
         <div class="flex-1 overflow-hidden">
             <div class="h-full overflow-y-auto p-8">
-                <h1 class="text-3xl font-bold mb-6">Main Content Area</h1>
 
-                <UrlCard></UrlCard>
                 <UrlManager></UrlManager>
             </div>
         </div>
