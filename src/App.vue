@@ -8,7 +8,7 @@ import HelloWorld from './components/HelloWorld.vue'
         <el-container>
             <el-header>Header</el-header>
             <el-container>
-                <el-aside width="200px" class="bg-white" >Aside</el-aside>
+                <el-aside width="200px" class="bg-black" >Aside</el-aside>
                 <el-main>
                     <div>
                         <a href="https://vitejs.dev" target="_blank">
