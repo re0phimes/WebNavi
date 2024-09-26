@@ -36,7 +36,7 @@
         <div 
           v-if="row.cards.length < 100" 
           @click="addCard(rowIndex)"
-          class="flex flex-col items-center justify-center h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer transition duration-300 ease-in-out hover:bg-gray-50"
+          class="flex flex-col items-center justify-center h-32 m-6 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer transition duration-300 ease-in-out hover:bg-gray-50"
         >
           <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>

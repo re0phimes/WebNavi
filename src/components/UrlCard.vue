@@ -1,137 +1,194 @@
 <template>
-    <div class="url-monitor">
-      <el-card>
-        <template #header>
-          <div class="card-header">
-            <span v-if="!isEditing">{{ url || '未设置 URL' }}</span>
-            <el-button v-if="!isEditing" @click="startEditing" type="primary" text>
-              修改
-            </el-button>
-          </div>
-        </template>
-        <el-form v-if="isEditing" @submit.prevent="saveUrl">
-          <el-form-item>
-            <el-input
-              v-model="editingUrl"
-              placeholder="输入URL"
-              :prefix-icon="Document"
-            >
-              <template #append>
-                <el-button @click="saveUrl" type="primary">
-                  保存
-                </el-button>
-              </template>
-            </el-input>
-          </el-form-item>
-        </el-form>
-        <div v-if="url && !isEditing" class="url-display">
-          <el-tag
-            :type="isOnline ? 'success' : 'danger'"
-            effect="dark"
-            class="ml-2"
-          >
-            {{ isOnline ? '在线' : '离线' }}
-          </el-tag>
-          <el-button
-            @click="checkStatus"
-            type="primary"
-            :icon="Refresh"
-            circle
-            class="ml-2"
-          />
+    <div class="max-w-md mx-auto my-5">
+        <div class="bg-white shadow-md rounded-lg overflow-hidden">
+            <div class="p-5 relative" @mouseenter="showActions = true" @mouseleave="showActions = false">
+                <div v-if="!isEditing" @click="openUrl" class="cursor-pointer">
+                    <div class="flex items-center">
+                        <img v-if="favicon" :src="favicon" alt="Favicon" class="w-6 h-6 mr-3">
+                        <div>
+                            <div class="font-bold text-lg">{{ url || '未设置 URL' }}</div>
+                            <div class="text-sm text-gray-600">{{ description || '无描述' }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <form v-if="isEditing" @submit.prevent="saveUrl" class="space-y-4 mt-4">
+                    <div>
+                        <input v-model="editingUrl" placeholder="输入URL"
+                            class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <div>
+                        <input v-model="editingDescription" placeholder="输入描述"
+                            class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <div class="flex space-x-2">
+                        <el-button type="primary" native-type="submit">保存</el-button>
+                        <el-button @click="cancelEditing" type="default">取消</el-button>
+                    </div>
+                </form>
+
+                <div v-if="url && !isEditing" class="mt-4 flex items-center">
+                    <span :class="[
+                        'px-2 py-1 text-xs font-bold rounded-full',
+                        isOnline ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                    ]">
+                        {{ isOnline ? '在线' : '离线' }}
+                    </span>
+                    <el-button @click="checkStatus" class="ml-2" icon="el-icon-refresh" circle></el-button>
+                </div>
+
+            </div>
         </div>
-      </el-card>
     </div>
-  </template>
-  
-  <script setup>
-  import { ref, onMounted, onUnmounted, watch } from 'vue'
-  import { Document, Refresh } from '@element-plus/icons-vue'
-  import { ElMessage } from 'element-plus'
-  
-  const props = defineProps({
+</template>
+
+<script setup>
+import { ElMessage, ElButton } from 'element-plus';
+import { ref, onMounted, onUnmounted, watch } from 'vue'
+
+const props = defineProps({
     initialUrl: {
-      type: String,
-      default: ''
+        type: String,
+        default: ''
+    },
+    initialDescription: {
+        type: String,
+        default: ''
+    },
+    id: {
+        type: [String, Number],
+        required: true
     }
-  })
-  
-  const emit = defineEmits(['update:url'])
-  
-  const url = ref(props.initialUrl)
-  const editingUrl = ref(props.initialUrl)
-  const isEditing = ref(!props.initialUrl)
-  const isOnline = ref(false)
-  
-  const startEditing = () => {
+})
+
+const emit = defineEmits(['update:url', 'update:description', 'delete'])
+
+const url = ref(props.initialUrl)
+const description = ref(props.initialDescription)
+const editingUrl = ref(props.initialUrl)
+const editingDescription = ref(props.initialDescription)
+const isEditing = ref(!props.initialUrl)
+const isOnline = ref(false)
+const favicon = ref('')
+const showActions = ref(false)
+
+const isValidIpAddress = (ipAddress) => {
+    const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/
+    if (ipPattern.test(ipAddress)) {
+        const parts = ipAddress.split('.')
+        return parts.every(part => parseInt(part) >= 0 && parseInt(part) <= 255)
+    }
+    return false
+}
+
+const startEditing = () => {
     editingUrl.value = url.value
+    editingDescription.value = description.value
     isEditing.value = true
-  }
-  
-  const saveUrl = () => {
+}
+
+const saveUrl = async () => {
     if (editingUrl.value) {
-      url.value = editingUrl.value
-      isEditing.value = false
-      emit('update:url', url.value)
-      checkStatus()
+        try {
+            await updateUrl(props.id, editingUrl.value, editingDescription.value)
+            url.value = editingUrl.value
+            description.value = editingDescription.value
+            isEditing.value = false
+            emit('update:url', url.value)
+            emit('update:description', description.value)
+            checkStatus()
+            fetchFavicon()
+            ElMessage.success('URL 更新成功')
+        } catch (error) {
+            ElMessage.error('URL 更新失败')
+        }
     } else {
-      ElMessage.warning('请输入有效的URL')
+        ElMessage.error('请输入有效的URL')
     }
-  }
-  
-  const checkStatus = async () => {
+}
+
+const cancelEditing = () => {
+    isEditing.value = false
+    editingUrl.value = url.value
+    editingDescription.value = description.value
+}
+
+const checkStatus = async () => {
     if (url.value) {
-      try {
-        const response = await fetch(url.value, { mode: 'no-cors' })
-        isOnline.value = response.status === 0 || (response.status >= 200 && response.status < 300)
-        ElMessage.success(`状态更新成功: ${isOnline.value ? '在线' : '离线'}`)
-      } catch (error) {
-        isOnline.value = false
-        ElMessage.error('检查状态时发生错误')
-      }
+        try {
+            const response = await fetch(url.value, { mode: 'no-cors' })
+            isOnline.value = response.status === 0 || (response.status >= 200 && response.status < 300)
+            ElMessage.success(`状态更新成功: ${isOnline.value ? '在线' : '离线'}`)
+        } catch (error) {
+            isOnline.value = false
+            ElMessage.error('检查状态时发生错误')
+        }
     }
-  }
-  
-  onMounted(() => {
+}
+
+const fetchFavicon = () => {
     if (url.value) {
-      checkStatus()
+        let faviconUrl
+        if (isValidIpAddress(url.value)) {
+            faviconUrl = `http://${url.value}/favicon.ico`
+        } else {
+            try {
+                const urlObject = new URL(url.value)
+                faviconUrl = `${urlObject.protocol}//${urlObject.hostname}/favicon.ico`
+            } catch (error) {
+                faviconUrl = `http://${url.value}/favicon.ico`
+            }
+        }
+        favicon.value = faviconUrl
+    } else {
+        favicon.value = ''
     }
-  })
-  
-  watch(() => props.initialUrl, (newValue) => {
+}
+
+const openUrl = () => {
+    if (url.value) {
+        let fullUrl = url.value
+        if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://') && !isValidIpAddress(fullUrl)) {
+            fullUrl = `http://${fullUrl}`
+        } else if (isValidIpAddress(fullUrl)) {
+            fullUrl = `http://${fullUrl}`
+        }
+        window.open(fullUrl, '_blank', 'noopener,noreferrer')
+    }
+}
+
+const deleteCard = async () => {
+    try {
+        await deleteUrl(props.id)
+        emit('delete', props.id)
+        ElMessage.success('URL 删除成功')
+    } catch (error) {
+        ElMessage.error('URL 删除失败')
+    }
+}
+
+onMounted(() => {
+    if (url.value) {
+        checkStatus()
+        fetchFavicon()
+    }
+})
+
+watch(() => props.initialUrl, (newValue) => {
     url.value = newValue
     editingUrl.value = newValue
     isEditing.value = !newValue
-  })
-  
-  // 设置定时器
-  const timer = setInterval(checkStatus, 60000) // 每分钟检查一次状态
-  
-  // 组件卸载时清除定时器
-  onUnmounted(() => {
+    fetchFavicon()
+})
+
+watch(() => props.initialDescription, (newValue) => {
+    description.value = newValue
+    editingDescription.value = newValue
+})
+
+const timer = setInterval(checkStatus, 60000)
+
+onUnmounted(() => {
     clearInterval(timer)
-  })
-  </script>
-  
-  <style scoped>
-  .url-monitor {
-    max-width: 500px;
-    margin: 20px auto;
-  }
-  
-  .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  
-  .url-display {
-    display: flex;
-    align-items: center;
-    margin-top: 20px;
-  }
-  
-  .ml-2 {
-    margin-left: 8px;
-  }
-  </style>
+})
+</script>
