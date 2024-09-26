@@ -10,20 +10,22 @@
 
             <div class="grid grid-cols-4 gap-4">
                 <div v-for="(card, cardIndex) in row.cards" :key="cardIndex" class="relative">
-                    <UrlCard :initial-url="card.url" @update:url="updateCard(rowIndex, cardIndex, $event)"
-                        class="h-full" />
-                    <el-button type="primary" @click="updateCard(rowIndex, cardIndex)" circle
-                        class="absolute top-2 right-12">
-                        <el-icon>
-                            <edit />
-                        </el-icon>
-                    </el-button>
-                    <el-button type="danger" @click="removeCard(rowIndex, cardIndex)" circle
-                        class="absolute top-2 right-2">
-                        <el-icon>
-                            <delete />
-                        </el-icon>
-                    </el-button>
+                    <div class="group">
+                        <UrlCard :initial-url="card.url" @update:url="updateCard(rowIndex, cardIndex, $event)"
+                            class="p-0 m-6" />
+                        <el-button type="primary" @click="updateCard(rowIndex, cardIndex)" circle
+                            class="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            <el-icon>
+                                <edit />
+                            </el-icon>
+                        </el-button>
+                        <el-button type="danger" @click="removeCard(rowIndex, cardIndex)" circle
+                            class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            <el-icon>
+                                <delete />
+                            </el-icon>
+                        </el-button>
+                    </div>
                 </div>
                 <div v-if="row.cards.length < 100" @click="addCard(rowIndex)"
                     class="flex flex-col items-center justify-center h-32 m-6 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer transition duration-300 ease-in-out hover:bg-gray-50">
