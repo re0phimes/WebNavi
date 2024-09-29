@@ -1,19 +1,17 @@
 <template>
     <el-card class="max-w-md mx-auto my-5 mt-2 mb-0 edit-card url-card" shadow="hover">
         <div class="p-4 relative" @mouseenter="showActions = true" @mouseleave="showActions = false">
-            <div v-if="!isEditing" @click="openUrl" class="cursor-pointer">
+            <div v-if="!card.isEditing" @click="openUrl" class="cursor-pointer">
                 <div class="flex items-center">
-                    <img v-if="favicon" :src="favicon" alt="Favicon" class="w-2 h-2 mr-3" />
+                    <img v-if="favicon" :src="favicon" alt="Favicon" class="w-6 h-6 mr-3" />
                     <div>
-                        <div class="font-bold">{{ url || '未设置 URL' }}</div>
-                        <div class="text-gray-600">{{ description || '无描述' }}</div>
+                        <div class="font-bold">{{ card.url || '未设置 URL' }}</div>
+                        <div class="text-gray-600">{{ card.description || '无描述' }}</div>
                     </div>
                 </div>
-
             </div>
 
-            <form v-if="isEditing" @submit.prevent="saveUrl" class="space-y-4 mt-4">
-
+            <form v-if="card.isEditing" @submit.prevent="saveUrl" class="space-y-4 mt-4">
                 <el-select v-model="editingUrl" filterable allow-create default-first-option placeholder="请选择或输入自定义值">
                     <el-option v-for="item in options" :key="item.value" :label="item.label" :value="item.value">
                     </el-option>
@@ -26,132 +24,66 @@
                     <el-button @click="cancelEditing">取消</el-button>
                 </div>
             </form>
-            <div v-if="url && !isEditing" class="flex items-center">
+            <div v-if="card.url && !card.isEditing" class="flex items-center mt-2">
                 <el-tag :type="isOnline ? 'success' : 'danger'" size="small" effect="dark">
                     {{ isOnline ? '在线' : '离线' }}
                 </el-tag>
-                <el-button @click="checkStatus" icon="el-icon-refresh" circle class="ml-2" />
+                <el-button @click="checkStatus" icon="Refresh" circle class="ml-2" />
             </div>
-
         </div>
     </el-card>
 </template>
 
 <script setup>
-import { ElMessage, ElButton, ElInput, ElCard, ElTag } from 'element-plus';
+import { ElMessage, ElButton, ElInput, ElCard, ElTag, ElSelect, ElOption } from 'element-plus';
+import { Edit, Refresh } from '@element-plus/icons-vue';
 import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { useUrlCardStore } from '../stores';
 
 const props = defineProps({
-    initialUrl: {
-        type: String,
-        default: ''
-    },
-    initialDescription: {
-        type: String,
-        default: ''
-    },
-    id: {
-        type: [String, Number],
+    rowIndex: {
+        type: Number,
         required: true
     },
-    isEditingExternal: {
-        type: Boolean,
-        detault: false
+    cardIndex: {
+        type: Number,
+        required: true
     }
 });
 
-const emit = defineEmits(['update:url', 'update:description', 'edit-complete']);
+const store = useUrlCardStore();
+const card = store.rows[props.rowIndex].cards[props.cardIndex];
 
-const url = ref(props.initialUrl);
-const description = ref(props.initialDescription);
-const editingUrl = ref(props.initialUrl);
-const editingDescription = ref(props.initialDescription);
-const isEditing = ref(!props.initialUrl || props.isEditingExternal);
+const editingUrl = ref(card.url);
+const editingDescription = ref(card.description);
 const isOnline = ref(false);
 const favicon = ref('');
 const showActions = ref(false);
 
-const value = ref('')
 const options = ref([
-    { value: '159.226.192.172:9000', label: '159.226.192.172:9000' },
-    { value: '192.168.49.15', label: '192.168.49.15' },
-    { value: 'Option3', label: 'Option3' },
-])
+    { value: 'http://159.226.192.172:9000', label: '159.226.192.172:9000' },
+    { value: 'http://192.168.49.15', label: '192.168.49.15' },
+    { value: 'http://example.com', label: 'example.com' },
+]);
 
-// 校验 IP 地址
-const isValidIpAddress = (ipAddress) => {
-    const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
-    if (ipPattern.test(ipAddress)) {
-        const parts = ipAddress.split('.');
-        return parts.every(part => parseInt(part, 10) >= 0 && parseInt(part, 10) <= 255);
-    }
-    return false;
+const isValidUrl = (url) => {
+    const pattern = new RegExp('^(https?:\\/\\/)?' + // protocol
+        '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // domain name
+        '((\\d{1,3}\\.){3}\\d{1,3}))' + // OR ip (v4) address
+        '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // port and path
+        '(\\?[;&a-z\\d%_.~+=-]*)?' + // query string
+        '(\\#[-a-z\\d_]*)?$', 'i'); // fragment locator
+    return !!pattern.test(url);
 };
 
-// 校验带协议的 URL
-const isValidUrlWithProtocol = (inputUrl) => {
-    try {
-        const parsedUrl = new URL(inputUrl);
-        return (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') && !!parsedUrl.hostname;
-    } catch (e) {
-        return false;
-    }
-};
-
-
-const isValidHostWithoutProtocol = (inputHost) => {
-    // 分离主机名和端口
-    const [host, port] = inputHost.split(':');
-
-    // 检查端口（如果存在）
-    if (port !== undefined) {
-        const portNumber = parseInt(port, 10);
-        if (isNaN(portNumber) || portNumber < 1 || portNumber > 65535) {
-            return false;
-        }
-    }
-
-    // 检查是否为 'localhost'
-    if (host === 'localhost') {
-        return true;
-    }
-
-    // 检查是否为有效的 IPv4 地址
-    const ipv4Pattern = /^(\d{1,3}\.){3}\d{1,3}$/;
-    if (ipv4Pattern.test(host)) {
-        const parts = host.split('.');
-        return parts.every(part => {
-            const num = parseInt(part, 10);
-            return num >= 0 && num <= 255;
-        });
-    }
-
-    // 检查是否为有效的 IPv6 地址
-    const ipv6Pattern = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
-    if (ipv6Pattern.test(host)) {
-        return true;
-    }
-
-    // 如果既不是 localhost，也不是有效的 IP 地址，则返回 false
-    return false;
-};
-
-
-// 综合的 URL 校验函数
-const isValidUrl = (inputUrl) => {
-    if (!inputUrl) return false;
-
-    if (inputUrl.startsWith('http://') || inputUrl.startsWith('https://')) {
-        return isValidUrlWithProtocol(inputUrl);
-    } else {
-        return isValidHostWithoutProtocol(inputUrl);
+const openUrl = () => {
+    if (card.url) {
+        window.open(card.url, '_blank');
     }
 };
 
 const startEditing = () => {
-    editingUrl.value = url.value;
-    editingDescription.value = description.value;
-    isEditing.value = true;
+    store.updateCard(props.rowIndex, props.cardIndex, { isEditing: true });
 };
 
 const saveUrl = async () => {
@@ -161,12 +93,11 @@ const saveUrl = async () => {
             return;
         }
         try {
-            url.value = editingUrl.value;
-            description.value = editingDescription.value;
-            isEditing.value = false;
-            emit('update:url', url.value);
-            emit('update:description', description.value);
-            emit('edit-complete');
+            store.updateCard(props.rowIndex, props.cardIndex, {
+                url: editingUrl.value,
+                description: editingDescription.value,
+                isEditing: false
+            });
             checkStatus();
             fetchFavicon();
             ElMessage.success('URL 更新成功');
@@ -174,108 +105,48 @@ const saveUrl = async () => {
             ElMessage.error('URL 更新失败');
         }
     } else {
-        console.log("请输入有效URL")
         ElMessage.error('请输入有效的URL');
     }
 };
 
 const cancelEditing = () => {
-    isEditing.value = false;
-    editingUrl.value = url.value;
-    editingDescription.value = description.value;
+    store.updateCard(props.rowIndex, props.cardIndex, { isEditing: false });
+    editingUrl.value = card.url;
+    editingDescription.value = card.description;
 };
 
 const checkStatus = async () => {
-    if (url.value) {
+    if (card.url) {
         try {
-            const response = await fetch(url.value, { mode: 'no-cors' });
-            isOnline.value = response.status === 0 || (response.status >= 200 && response.status < 300);
-            ElMessage.success(`状态更新成功: ${isOnline.value ? '在线' : '离线'}`);
+            const response = await fetch(card.url, { mode: 'no-cors' });
+            isOnline.value = response.ok;
         } catch (error) {
             isOnline.value = false;
-            ElMessage.error('检查状态时发生错误');
         }
     }
 };
 
 const fetchFavicon = () => {
-    if (url.value) {
-        let faviconUrl;
-        if (isValidIpAddress(getHostWithoutProtocol(url.value)) || getHostWithoutProtocol(url.value) === 'localhost') {
-            faviconUrl = `http://${getHostWithoutProtocol(url.value)}/favicon.ico`;
-        } else {
-            try {
-                const urlObject = new URL(url.value);
-                faviconUrl = `${urlObject.protocol}//${urlObject.hostname}/favicon.ico`;
-            } catch (error) {
-                faviconUrl = '';
-            }
-        }
-        favicon.value = faviconUrl;
-    } else {
-        favicon.value = '';
-    }
-};
-
-// 获取不带协议的主机部分
-const getHostWithoutProtocol = (inputUrl) => {
-    if (inputUrl.startsWith('http://') || inputUrl.startsWith('https://')) {
-        try {
-            const urlObject = new URL(inputUrl);
-            return urlObject.hostname;
-        } catch (e) {
-            return inputUrl;
-        }
-    }
-    return inputUrl;
-};
-
-const openUrl = () => {
-    if (url.value) {
-        let fullUrl = url.value;
-        if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) {
-            if (isValidIpAddress(fullUrl) || fullUrl === 'localhost') {
-                fullUrl = `http://${fullUrl}`;
-            }
-        }
-        window.open(fullUrl, '_blank', 'noopener,noreferrer');
-    }
-};
-
-const deleteCard = async () => {
-    try {
-        // 这里你可以调用实际的删除URL逻辑，例如：
-        // await deleteUrl(props.id);
-        emit('delete', props.id);
-        ElMessage.success('URL 删除成功');
-    } catch (error) {
-        ElMessage.error('URL 删除失败');
+    if (card.url) {
+        const url = new URL(card.url);
+        favicon.value = `${url.protocol}//${url.hostname}/favicon.ico`;
     }
 };
 
 onMounted(() => {
-    if (url.value) {
+    if (card.url) {
         checkStatus();
         fetchFavicon();
     }
 });
 
-watch(() => props.initialUrl, (newValue) => {
-    url.value = newValue;
+watch(() => card.url, (newValue) => {
     editingUrl.value = newValue;
-    isEditing.value = !newValue;
     fetchFavicon();
 });
 
-watch(() => props.initialDescription, (newValue) => {
-    description.value = newValue;
+watch(() => card.description, (newValue) => {
     editingDescription.value = newValue;
-});
-
-watch(() => props.isEditingExternal, (newValue) => {
-    if (newValue) {
-        startEditing();
-    }
 });
 
 const timer = setInterval(checkStatus, 60000);
@@ -284,7 +155,6 @@ onUnmounted(() => {
     clearInterval(timer);
 });
 </script>
-
 
 <style scoped>
 .edit-card :deep(.el-card__body) {
