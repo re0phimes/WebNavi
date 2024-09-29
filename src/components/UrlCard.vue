@@ -94,7 +94,6 @@ const isValidUrlWithProtocol = (inputUrl) => {
 };
 
 
-// 校验不带协议的IP地址
 const isValidHostWithoutProtocol = (inputHost) => {
   // 分离主机名和端口
   const [host, port] = inputHost.split(':');
