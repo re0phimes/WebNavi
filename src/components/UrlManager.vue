@@ -11,9 +11,12 @@
             <div class="grid grid-cols-6 gap-4">
                 <div v-for="(card, cardIndex) in row.cards" :key="cardIndex" class="relative">
                     <div class="group">
-                        <UrlCard :initial-url="card.url" @update:url="updateCard(rowIndex, cardIndex, $event)"
-                            class="p-0 m-6" />
-                        <el-button type="primary" @click="updateCard(rowIndex, cardIndex)" circle
+                        <UrlCard :initial-url="card.url" :initial-description="card.description"
+                            :is-editing-external="card.isEditing"
+                            @update:url="updateCardUrl(rowIndex, cardIndex, $event)"
+                            @update:description="updateCardDescription(rowIndex, cardIndex, $event)"
+                            @edit-complete="rows[rowIndex].cards[cardIndex].isEditing = false" class="p-0 m-6" />
+                        <el-button type="primary" @click="updateCardUrl(rowIndex, cardIndex, $event)" circle
                             class="absolute top-0 right-12 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                             <el-icon>
                                 <edit />
@@ -70,6 +73,20 @@ const addCard = (rowIndex) => {
 
 const removeCard = (rowIndex, cardIndex) => {
     rows.value[rowIndex].cards.splice(cardIndex, 1);
+};
+
+const updateCard = (rowIndex, cardIndex) => {
+    console.log("updateCard clicked");
+    rows.value[rowIndex].cards[cardIndex].isEditing = true;
+};
+
+const updateCardUrl = (rowIndex, cardIndex, newUrl) => {
+    rows.value[rowIndex].cards[cardIndex].url = newUrl;
+    rows.value[rowIndex].cards[cardIndex].isEditing = false;
+};
+
+const updateCardDescription = (rowIndex, cardIndex, newDescription) => {
+    rows.value[rowIndex].cards[cardIndex].description = newDescription;
 };
 
 watch(rows, (newRows) => {
