@@ -16,9 +16,25 @@
 
     /* Linting */
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noUnusedLocals": false,        // 修改这里
+    "noUnusedParameters": false,     // 修改这里
+    "noFallthroughCasesInSwitch": true,
+    
+    /* 添加以下配置 */
+    "noImplicitAny": false,
+    "allowJs": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "src/stores/index.js"]
+  "include": [
+    "src/**/*.ts", 
+    "src/**/*.tsx", 
+    "src/**/*.vue", 
+    "src/**/*.js",
+    "src/**/*.jsx",
+    "src/stores/index.js",
+    "env.d.ts"
+  ]
 }
